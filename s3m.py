@@ -5,7 +5,7 @@ import os
 import sqlite3
 import threading
 
-__all__ = ["connect", "Connection", "LockTimeoutError"]
+__all__ = ["connect", "Connection", "S3MError", "LockTimeoutError"]
 
 version = "1.0.0"
 
