@@ -13,6 +13,11 @@ class S3MTestCase(unittest.TestCase):
         self.n_connections = 25
         self.db_path = "s3m_test.db"
 
+        try:
+            os.remove(self.db_path)
+        except FileNotFoundError:
+            pass
+
     def insert_func(self, *args, **kwargs):
         conn = self.connect_db(*args, **kwargs)
         if conn.path == ":memory:":
@@ -141,11 +146,11 @@ class S3MTestCase(unittest.TestCase):
             nonlocal success, message
 
             try:
-                # 
                 for i in range(50):
                     conn.execute("SELECT 1")
             except BaseException as e:
                 if not isinstance(e, sqlite3.ProgrammingError):
+                    # sqlite3.ProgrammingError is ok
                     success = False
                     message = "%s: %s" % (type(e).__name__, e)
 
