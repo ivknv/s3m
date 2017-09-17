@@ -7,7 +7,7 @@ import threading
 
 __all__ = ["connect", "Connection", "S3MError", "LockTimeoutError"]
 
-version = "1.0.1"
+version = "1.0.2"
 
 # Global lock storage
 CONNECTION_LOCKS = {}
@@ -164,9 +164,13 @@ class Connection(object):
         """Close the connection"""
 
         if not self.closed:
-            self.cursor.close()
-            self.connection.close()
-            self.closed = True
+            # Make sure no one minds the connection to be closed
+            # This will help avoid MemoryError in other threads,
+            # they will get sqlite3.ProgrammingError instead
+            with self.personal_lock:
+                self.cursor.close()
+                self.connection.close()
+                self.closed = True
 
     @chain
     def execute(self, *args, **kwargs):
