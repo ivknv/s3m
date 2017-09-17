@@ -7,7 +7,7 @@ import threading
 
 __all__ = ["connect", "Connection", "S3MError", "LockTimeoutError"]
 
-version = "1.0.0"
+version = "1.0.1"
 
 # Global lock storage
 CONNECTION_LOCKS = {}
@@ -83,8 +83,11 @@ class Connection(object):
         # Should parallel transactions be allowed?
         self.lock_transactions = lock_transactions
 
+        # This lock is used to control sharing of the connection between threads
+        self.personal_lock = threading.RLock()
+
         if self.path == ":memory:":
-            # No 2 :memory: connections point to the same database => locks are not needed
+            # No two :memory: connections point to the same database => locks are not needed
             self.lock = FakeLock()
             return
 
@@ -130,18 +133,23 @@ class Connection(object):
             if not self.lock.acquire(timeout=self.lock_timeout):
                 raise LockTimeoutError(self)
 
+        if not self.personal_lock.acquire(timeout=self.lock_timeout):
+            raise LockTimeoutError(self)
+
         self.was_in_transaction = self.connection.in_transaction
 
     def __exit__(self, *args, **kwargs):
-        try:
-            # if the connection is closed, an exception is thrown
-            in_transaction = self.in_transaction
-        except sqlite3.ProgrammingError:
-            in_transaction = False
+        self.personal_lock.release()
 
         if not self.lock_transactions:
             self.lock.release()
             return
+
+        try:
+            # If the connection is closed, an exception is thrown
+            in_transaction = self.in_transaction
+        except sqlite3.ProgrammingError:
+            in_transaction = False
 
         # The lock should be released only if:
         # 1) the connection was previously in a transaction and now it isn't
