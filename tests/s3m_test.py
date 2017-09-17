@@ -59,8 +59,9 @@ class S3MTestCase(unittest.TestCase):
         self.assertEqual(result, [(1,), (2,), (3,)] * self.n_connections)
 
     def test_s3m_lock_transactions(self):
-        conn1 = self.connect_db(self.db_path, lock_transactions=False)
-        conn2 = self.connect_db(self.db_path, lock_transactions=False, check_same_thread=False)
+        conn1 = self.connect_db(self.db_path, lock_transactions=False, lock_timeout=0.5)
+        conn2 = self.connect_db(self.db_path, lock_transactions=False, lock_timeout=0.5,
+                                check_same_thread=False)
 
         def thread_func():
             conn2.execute("BEGIN TRANSACTION")
@@ -106,6 +107,28 @@ class S3MTestCase(unittest.TestCase):
         conn2.execute("CREATE TABLE a(id INTEGER)")
         conn1.commit()
         conn2.commit()
+
+    def test_sharing(self):
+        conn = self.connect_db(":memory:", check_same_thread=False)
+
+        conn.execute("CREATE TABLE a(id INTEGER)")
+        conn.execute("BEGIN TRANSACTION")
+
+        def func():
+            for i in range(25):
+                conn.execute("INSERT INTO a VALUES(?)", (i,))
+
+        thread = threading.Thread(target=func)
+
+        thread.start()
+        func()
+        thread.join()
+
+        conn.commit()
+
+        conn.execute("SELECT id FROM a")
+
+        self.assertEqual(len(conn.fetchall()), 50)
 
     def tearDown(self):
         try:
