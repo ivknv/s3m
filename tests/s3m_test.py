@@ -4,7 +4,6 @@
 import os
 import threading
 import unittest
-import IPython
 
 import s3m
 
