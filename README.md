@@ -14,6 +14,12 @@ That's basically the whole point of this library.
 
 ## Installation
 ```bash
+pip install s3m
+```
+
+or
+
+```bash
 python setup.py install
 ```
 There are no requirements.
