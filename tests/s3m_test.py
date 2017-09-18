@@ -3,6 +3,7 @@
 
 import os
 import sqlite3
+import sys
 import threading
 import unittest
 
@@ -137,6 +138,10 @@ class S3MTestCase(unittest.TestCase):
         self.assertEqual(len(conn.fetchall()), 50)
 
     def test_close(self):
+        # This doesn't work properly on windows
+        if sys.platform.startswith("win"):
+            return
+
         conn = self.connect_db(":memory:", check_same_thread=False)
 
         success = True
