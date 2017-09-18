@@ -56,7 +56,7 @@ import threading
 
 import s3m
 
-conn = s3m.connect("database.db", isolation_level=None)
+conn = s3m.connect("database.db", isolation_level=None, check_same_thread=False)
 conn.execute("BEGIN TRANSACTION")
 
 def thread_func():
