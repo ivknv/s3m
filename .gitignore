@@ -3,3 +3,4 @@
 build/
 dist/
 s3m.egg-info/
+sphinx/_build/
