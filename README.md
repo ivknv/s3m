@@ -5,6 +5,7 @@ S3M - is a sqlite3 wrapper for multi-threaded python applications.
 1. [Multi-threading](#multi-threading-support)
 2. [Installation](#installation)
 3. [Usage](#usage)
+5. [Documentation](#documentation)
 4. [Examples](#examples)
 
 ## Multi-threading support
@@ -25,6 +26,9 @@ You never have to use cursors. `s3m.Connection` object is completely self-suffic
 
 ### Connections can be freely shared between threads (given `check_same_thread=False`)
 Multiple threads can use the same connection at the same time without any problems, that is, assuming that the connection was created with `check_same_thread=False`.
+
+## Documentation
+See `docs/index.html`
 
 ## Examples
 ```python
