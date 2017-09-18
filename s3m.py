@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+"""
+S3M - sqlite3 wrapper for multi-threaded applications
+"""
+
 # S3M - sqlite3 wrapper for multi-threaded applications
 # Copyright (C) 2017 Ivan Konovalov
 #
@@ -33,9 +37,12 @@ DICT_LOCK = threading.Lock()
 DEFAULT_FETCHMANY_SIZE = 1000
 
 class S3MError(BaseException):
+    """The base class of all the other exceptions in this module"""
     pass
 
 class LockTimeoutError(S3MError):
+    """Thrown when Lock.acquire() took too long"""
+
     def __init__(self, conn, msg=None):
         if msg is None:
             if conn is None or not isinstance(conn.lock_timeout, (int, float)):
@@ -68,7 +75,7 @@ def normalize_path(path):
     return os.path.normcase(os.path.normpath(os.path.realpath(path)))
 
 class FakeLock(object):
-    """Only pretends to be a lock"""
+    """Only pretends to be a lock, doesn't do anything"""
 
     def acquire(self, *args, **kwargs):
         return True
@@ -84,6 +91,20 @@ def chain(f):
     return wrapper
 
 class Connection(object):
+    """Implements functionality of both a connection and a cursor.
+       It won't let multiple database operations execute in parallel.
+       It can also block parallel transactions (with lock_transactions=True).
+
+       `with` statement is also supported, it acquires the locks, thus blocking all the competing threads.
+       This can be useful to ensure that database queries will complete in the specified order.
+
+       :param path: Path to the database
+       :param lock_transactions: If True, parallel transactions will be blocked
+       :param lock_timeout: Maximum amount of time the connection is allowed to wait for a lock.
+                            If the timeout is exceeded, LockTimeoutError will be thrown.
+                            -1 disables the timeout.
+    """
+
     def __init__(self, path, lock_transactions=True, lock_timeout=-1, *args, **kwargs):
         self.path = normalize_path(path)
         self.connection = sqlite3.connect(self.path, *args, **kwargs)
@@ -117,10 +138,14 @@ class Connection(object):
 
     @property
     def in_transaction(self):
+        """Analagous to `sqlite3.Connection.in_transaction`"""
+
         return self.connection.in_transaction
 
     @property
     def isolation_level(self):
+        """Analagous to `sqlite3.Connection.isolation_level`"""
+
         return self.connection.isolation_level
 
     @isolation_level.setter
@@ -129,6 +154,8 @@ class Connection(object):
 
     @property
     def row_factory(self):
+        """Analagous to `sqlite3.Connection.row_factory`"""
+
         return self.connection.row_factory
 
     @row_factory.setter
@@ -137,6 +164,8 @@ class Connection(object):
 
     @property
     def text_factory(self):
+        """Analagous to `sqlite3.Connection.text_factory`"""
+
         return self.connection.text_factory
 
     @property
@@ -190,70 +219,119 @@ class Connection(object):
 
     @chain
     def execute(self, *args, **kwargs):
+        """Analagous to `sqlite3.Cursor.execute()`
+           :returns: self"""
+
         with self:
             self.cursor.execute(*args, **kwargs)
 
     @chain
     def executemany(self, *args, **kwargs):
+        """Analagous to `sqlite3.Cursor.executemany()`
+           :returns: self"""
+
         with self:
             self.cursor.executemany(*args, **kwargs)
 
     @chain
     def executescript(self, *args, **kwargs):
+        """Analagous to `sqlite3.Cursor.executscript()`
+           :returns: self"""
+
         with self:
             self.cursor.executescript(*args, **kwargs)
 
     def commit(self):
+        """Analagous to `sqlite3.Connection.commit()`"""
+
         with self:
             self.connection.commit()
 
     def rollback(self):
+        """Analagous to `sqlite3.Connection.rollback()`"""
+
         with self:
             self.connection.rollback()
 
     def fetchone(self):
+        """Analagous to `sqlite3.Cursor.fetchone()`"""
+
         with self:
             return self.cursor.fetchone()
 
     def fetchmany(self, size=DEFAULT_FETCHMANY_SIZE):
+        """Analagous to `sqlite3.Cursor.fetchmany()`"""
+
         with self:
             return self.cursor.fetchmany(size)
 
     def fetchall(self):
+        """Analagous to `sqlite3.Cursor.fetchall()`"""
+
         with self:
             return self.cursor.fetchall()
 
     def interrupt(self):
+        """Analagous to `sqlite3.Connection.interrupt()`"""
+
         return self.connection.interrupt()
 
     def create_function(self, *args, **kwargs):
+        """Analagous to `sqlite3.Connection.create_function()`"""
+
         self.connection.create_function(*args, **kwargs)
 
     def create_aggregate(self, *args, **kwargs):
+        """Analagous to `sqlite3.Connection.create_aggregate()`"""
+
         self.connection.create_aggregate(*args, **kwargs)
 
     def create_collation(self, *args, **kwargs):
+        """Analagous to `sqlite3.Connection.create_collation()`"""
+
         self.connection.create_collation(*args, **kwargs)
 
     def set_authorizer(self, *args, **kwargs):
+        """Analagous to `sqlite3.Connection.set_authorizer()`"""
+
         self.connection.set_authorizer(*args, **kwargs)
 
     def set_progress_handler(self, *args, **kwargs):
         self.connection.set_progress_handler(*args, **kwargs)
 
     def set_trace_callback(self, *args, **kwargs):
+        """Analagous to `sqlite3.Connection.set_trace_callback()`"""
+
         self.connection.set_trace_callback(*args, **kwargs)
 
     def enable_load_extension(self, *args, **kwargs):
+        """Analagous to `sqlite3.Connection.enable_load_extension()`"""
+
         self.connection.enable_load_extension(*args, **kwargs)
 
     def load_extension(self, *args, **kwargs):
+        """Analagous to `sqlite3.Connection.load_extension()`"""
+
         self.connection.load_extension(*args, **kwargs)
 
     def iterdump(self, *args, **kwargs):
+        """Analagous to `sqlite3.Connection.iterdump()`"""
+
         return self.connection.iterdump()
 
-def connect(path, factory=Connection, *args, **kwargs):
-    """Analagous to sqlite3.connect()"""
+def connect(path, lock_transactions=True, lock_timeout=-1,
+            factory=Connection, *args, **kwargs):
+    """Analagous to sqlite3.connect()
 
-    return factory(path, *args, **kwargs)
+       :param path: Path to the database
+       :param lock_transactions: If True, parallel transactions will be blocked
+       :param lock_timeout: Maximum amount of time the connection is allowed to wait for a lock.
+                            If the timeout is exceeded, LockTimeoutError will be thrown.
+                            -1 disables the timeout.
+       :param factory: Connection class
+    """
+
+    return factory(path,
+                   lock_transactions=lock_transactions,
+                   lock_timeout=lock_timeout,
+                   *args, **kwargs)
