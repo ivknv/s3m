@@ -2,7 +2,7 @@
 S3M - is a sqlite3 wrapper for multithreaded python applications.
 
 # Table of contents
-1. [multithreading](#multithreading-support)
+1. [Multithreading](#multithreading-support)
 2. [Installation](#installation)
 3. [Usage](#usage)
 
