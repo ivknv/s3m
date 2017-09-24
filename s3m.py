@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-S3M - sqlite3 wrapper for multi-threaded applications
+S3M - sqlite3 wrapper for multithreaded applications
 """
 
 # S3M - sqlite3 wrapper for multi-threaded applications
@@ -27,13 +27,14 @@ import threading
 
 __all__ = ["connect", "Connection", "S3MError", "LockTimeoutError"]
 
-version = "1.0.2"
+version = "1.0.3"
 
 # Global lock storage
-CONNECTION_LOCKS = {}
+DB_STATES = {}
 
-# Locks access to CONNECTION_LOCKS
+# Locks access to DB_STATES
 DICT_LOCK = threading.Lock()
+
 DEFAULT_FETCHMANY_SIZE = 1000
 
 class S3MError(BaseException):
@@ -83,6 +84,25 @@ class FakeLock(object):
     def release(self, *args, **kwargs):
         return True
 
+class DBState(object):
+    """Stores database locks and the currently active connection"""
+
+    def __init__(self, connection=None):
+        # Blocks parallel database operations
+        self.lock = threading.RLock()
+
+        # Blocks parallel transactions
+        self.transaction_lock = threading.Lock()
+        self.active_connection = connection
+
+class FakeDBState(object):
+    """Like DBState but uses FakeLock"""
+
+    def __init__(self, connection=None):
+        self.lock = FakeLock()
+        self.transaction_lock = FakeLock()
+        self.active_connection = None
+
 def chain(f):
     def wrapper(self, *args, **kwargs):
         f(self, *args, **kwargs)
@@ -123,28 +143,31 @@ class Connection(object):
         # This lock is used to control sharing of the connection between threads
         self.personal_lock = threading.RLock()
 
+        # Number of active with blocks
+        self.with_count = 0
+
         if self.path == ":memory:":
             # No two :memory: connections point to the same database => locks are not needed
-            self.lock = FakeLock()
+            self.db_state = FakeDBState()
             return
 
         with DICT_LOCK:
-            self.lock = CONNECTION_LOCKS.get(self.path)
+            self.db_state = DB_STATES.get(self.path)
 
-            # If the lock doesn't already exist, make a new one
-            if self.lock is None:
-                self.lock = threading.RLock()
-                CONNECTION_LOCKS[self.path] = self.lock
+            # If the object doesn't already exist, make a new one
+            if self.db_state is None:
+                self.db_state = DBState()
+                DB_STATES[self.path] = self.db_state
 
     @property
     def in_transaction(self):
-        """Analagous to `sqlite3.Connection.in_transaction`"""
+        """Analogous to `sqlite3.Connection.in_transaction`"""
 
         return self.connection.in_transaction
 
     @property
     def isolation_level(self):
-        """Analagous to `sqlite3.Connection.isolation_level`"""
+        """Analogous to `sqlite3.Connection.isolation_level`"""
 
         return self.connection.isolation_level
 
@@ -154,7 +177,7 @@ class Connection(object):
 
     @property
     def row_factory(self):
-        """Analagous to `sqlite3.Connection.row_factory`"""
+        """Analogous to `sqlite3.Connection.row_factory`"""
 
         return self.connection.row_factory
 
@@ -164,7 +187,7 @@ class Connection(object):
 
     @property
     def text_factory(self):
-        """Analagous to `sqlite3.Connection.text_factory`"""
+        """Analogous to `sqlite3.Connection.text_factory`"""
 
         return self.connection.text_factory
 
@@ -173,21 +196,33 @@ class Connection(object):
         return self.connection.total_changes
 
     def __enter__(self):
-        # If connection is already in a transaction, then the lock was not released last time
-        if not self.connection.in_transaction or not self.lock_transactions:
-            if not self.lock.acquire(timeout=self.lock_timeout):
-                raise LockTimeoutError(self)
-
         if not self.personal_lock.acquire(timeout=self.lock_timeout):
+            raise LockTimeoutError(self)
+
+        self.with_count += 1
+
+        if self.lock_transactions and self.db_state.active_connection is not self:
+            if not self.db_state.transaction_lock.acquire(timeout=self.lock_timeout):
+                self.personal_lock.release()
+                raise LockTimeoutError(self)
+            self.db_state.active_connection = self
+
+        if not self.db_state.lock.acquire(timeout=self.lock_timeout):
+            self.personal_lock.release()
+            if self.lock_transactions:
+                self.db_state.active_connection = None
+                self.transaction_lock.release()
             raise LockTimeoutError(self)
 
         self.was_in_transaction = self.connection.in_transaction
 
     def __exit__(self, *args, **kwargs):
+        self.with_count -= 1
+
         self.personal_lock.release()
 
         if not self.lock_transactions:
-            self.lock.release()
+            self.db_state.lock.release()
             return
 
         try:
@@ -196,11 +231,15 @@ class Connection(object):
         except sqlite3.ProgrammingError:
             in_transaction = False
 
-        # The lock should be released only if:
+        # The transaction lock should be released only if:
         # 1) the connection was previously in a transaction and now it isn't
         # 2) the connection wasn't previously in a transaction and still isn't
         if (self.was_in_transaction and not in_transaction) or not in_transaction:
-            self.lock.release()
+            if self.with_count == 0: # This is for nested with statements
+                self.db_state.active_connection = None
+                self.db_state.transaction_lock.release()
+
+        self.db_state.lock.release()
 
     def __del__(self):
         self.close()
@@ -212,14 +251,19 @@ class Connection(object):
             # Make sure no one minds the connection to be closed
             # This will help avoid MemoryError in other threads,
             # they will get sqlite3.ProgrammingError instead
-            with self.personal_lock:
+            if not self.personal_lock.acquire(timeout=self.lock_timeout):
+                raise LockTimeoutError(self)
+
+            try:
                 self.cursor.close()
                 self.connection.close()
                 self.closed = True
+            finally:
+                self.personal_lock.release()
 
     @chain
     def execute(self, *args, **kwargs):
-        """Analagous to `sqlite3.Cursor.execute()`
+        """Analogous to `sqlite3.Cursor.execute()`
            :returns: self"""
 
         with self:
@@ -227,7 +271,7 @@ class Connection(object):
 
     @chain
     def executemany(self, *args, **kwargs):
-        """Analagous to `sqlite3.Cursor.executemany()`
+        """Analogous to `sqlite3.Cursor.executemany()`
            :returns: self"""
 
         with self:
@@ -235,64 +279,64 @@ class Connection(object):
 
     @chain
     def executescript(self, *args, **kwargs):
-        """Analagous to `sqlite3.Cursor.executscript()`
+        """Analogous to `sqlite3.Cursor.executscript()`
            :returns: self"""
 
         with self:
             self.cursor.executescript(*args, **kwargs)
 
     def commit(self):
-        """Analagous to `sqlite3.Connection.commit()`"""
+        """Analogous to `sqlite3.Connection.commit()`"""
 
         with self:
             self.connection.commit()
 
     def rollback(self):
-        """Analagous to `sqlite3.Connection.rollback()`"""
+        """Analogous to `sqlite3.Connection.rollback()`"""
 
         with self:
             self.connection.rollback()
 
     def fetchone(self):
-        """Analagous to `sqlite3.Cursor.fetchone()`"""
+        """Analogous to `sqlite3.Cursor.fetchone()`"""
 
         with self:
             return self.cursor.fetchone()
 
     def fetchmany(self, size=DEFAULT_FETCHMANY_SIZE):
-        """Analagous to `sqlite3.Cursor.fetchmany()`"""
+        """Analogous to `sqlite3.Cursor.fetchmany()`"""
 
         with self:
             return self.cursor.fetchmany(size)
 
     def fetchall(self):
-        """Analagous to `sqlite3.Cursor.fetchall()`"""
+        """Analogous to `sqlite3.Cursor.fetchall()`"""
 
         with self:
             return self.cursor.fetchall()
 
     def interrupt(self):
-        """Analagous to `sqlite3.Connection.interrupt()`"""
+        """Analogous to `sqlite3.Connection.interrupt()`"""
 
         return self.connection.interrupt()
 
     def create_function(self, *args, **kwargs):
-        """Analagous to `sqlite3.Connection.create_function()`"""
+        """Analogous to `sqlite3.Connection.create_function()`"""
 
         self.connection.create_function(*args, **kwargs)
 
     def create_aggregate(self, *args, **kwargs):
-        """Analagous to `sqlite3.Connection.create_aggregate()`"""
+        """Analogous to `sqlite3.Connection.create_aggregate()`"""
 
         self.connection.create_aggregate(*args, **kwargs)
 
     def create_collation(self, *args, **kwargs):
-        """Analagous to `sqlite3.Connection.create_collation()`"""
+        """Analogous to `sqlite3.Connection.create_collation()`"""
 
         self.connection.create_collation(*args, **kwargs)
 
     def set_authorizer(self, *args, **kwargs):
-        """Analagous to `sqlite3.Connection.set_authorizer()`"""
+        """Analogous to `sqlite3.Connection.set_authorizer()`"""
 
         self.connection.set_authorizer(*args, **kwargs)
 
@@ -300,28 +344,28 @@ class Connection(object):
         self.connection.set_progress_handler(*args, **kwargs)
 
     def set_trace_callback(self, *args, **kwargs):
-        """Analagous to `sqlite3.Connection.set_trace_callback()`"""
+        """Analogous to `sqlite3.Connection.set_trace_callback()`"""
 
         self.connection.set_trace_callback(*args, **kwargs)
 
     def enable_load_extension(self, *args, **kwargs):
-        """Analagous to `sqlite3.Connection.enable_load_extension()`"""
+        """Analogous to `sqlite3.Connection.enable_load_extension()`"""
 
         self.connection.enable_load_extension(*args, **kwargs)
 
     def load_extension(self, *args, **kwargs):
-        """Analagous to `sqlite3.Connection.load_extension()`"""
+        """Analogous to `sqlite3.Connection.load_extension()`"""
 
         self.connection.load_extension(*args, **kwargs)
 
     def iterdump(self, *args, **kwargs):
-        """Analagous to `sqlite3.Connection.iterdump()`"""
+        """Analogous to `sqlite3.Connection.iterdump()`"""
 
         return self.connection.iterdump()
 
 def connect(path, lock_transactions=True, lock_timeout=-1,
             factory=Connection, *args, **kwargs):
-    """Analagous to sqlite3.connect()
+    """Analogous to sqlite3.connect()
 
        :param path: Path to the database
        :param lock_transactions: If True, parallel transactions will be blocked

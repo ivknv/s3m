@@ -4,9 +4,9 @@
 from setuptools import setup
 
 setup(name="s3m",
-      version="1.0.2",
+      version="1.0.3",
       py_modules=["s3m"],
-      description="sqlite3 wrapper for multi-threaded applications",
+      description="sqlite3 wrapper for multithreaded applications",
       author="Ivan Konovalov",
       author_email="rvan.mega@gmail.com",
       url="https://github.com/SPython/s3m",
