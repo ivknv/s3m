@@ -2,7 +2,7 @@ Introduction
 ============
 
 One of the problems of the built-in `sqlite3` module is that doesn't work very well with multithreading.
-S3M is a wrapper of `sqlite3` that allows you to easily do multithreading:
+S3M - is a wrapper of `sqlite3` that allows you to easily do multithreading:
 
 * It locks parallel database operations so that only one can run at a time.
 * It can also lock transactions (enabled by default) so that only one transaction can be active at a time.
@@ -13,7 +13,7 @@ Keep in mind that this library can only help you with **threads**, not **process
 
 What else is different from `sqlite3`?
 ######################################
-* There are no cursors. All you need is the connection object, it's completely self-sufficent.
+* There are no cursors. All you need is the connection object, it's completely self-sufficient.
 * You can freely share connections between threads (not that you have to), given ``check_same_thread=False``.
 * You can use the ``with`` statement with the connection object to acquire the locks.
 
