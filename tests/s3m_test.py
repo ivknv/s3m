@@ -22,9 +22,9 @@ class S3MTestCase(unittest.TestCase):
     def insert_func(self, *args, **kwargs):
         conn = self.connect_db(*args, **kwargs)
         if conn.path == ":memory:":
-            self.assertFalse(conn.path in s3m.CONNECTION_LOCKS)
+            self.assertFalse(conn.path in s3m.DB_STATES)
         else:
-            self.assertIs(conn.lock, s3m.CONNECTION_LOCKS[s3m.normalize_path(conn.path)])
+            self.assertIs(conn.db_state, s3m.DB_STATES[s3m.normalize_path(conn.path)])
 
         queries = ["CREATE TABLE IF NOT EXISTS a(id INTEGER)",
                    "BEGIN TRANSACTION",
@@ -88,9 +88,7 @@ class S3MTestCase(unittest.TestCase):
         conn2 = self.connect_db(self.db_path, lock_timeout=0.01)
 
         def thread_func():
-            if self.assertRaises(s3m.LockTimeoutError, conn2.execute, "BEGIN TRANSACTION"):
-                return
-            conn2.execute("CREATE TABLE b(id INTEGER);")
+            self.assertRaises(s3m.LockTimeoutError, conn2.execute, "BEGIN TRANSACTION")
 
         conn1.execute("BEGIN TRANSACTION")
 
@@ -99,7 +97,6 @@ class S3MTestCase(unittest.TestCase):
         thread.join()
 
         conn1.rollback()
-        conn2.rollback()
 
     def test_in_memory1(self):
         self.setup_db(":memory:")
@@ -170,6 +167,32 @@ class S3MTestCase(unittest.TestCase):
             thread.join()
 
         self.assertTrue(success, message)
+
+    def test_s3m_release_without_acquire(self):
+        import random
+
+        conn = self.connect_db(check_same_thread=False, isolation_level='')
+
+        conn.execute("CREATE TABLE IF NOT EXISTS numbers(number INTEGER)")
+
+        def thread_func():
+            conn.execute("INSERT INTO numbers VALUES(?)", (random.randint(1, 100),))
+
+        threads = [threading.Thread(target=thread_func) for i in range(10)]
+
+        for thread in threads:
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        conn.commit()
+
+    def test_create_with(self):
+        conn = self.connect_db(isolation_level=None)
+        with conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS a (b INTEGER)")
+            conn.execute("CREATE INDEX IF NOT EXISTS b_idx ON a(b ASC)")
 
     def tearDown(self):
         try:
