@@ -108,6 +108,8 @@ def chain(f):
         f(self, *args, **kwargs)
         return self
 
+    wrapper.__doc__ = f.__doc__
+
     return wrapper
 
 class Connection(object):
@@ -264,7 +266,9 @@ class Connection(object):
     @chain
     def execute(self, *args, **kwargs):
         """Analogous to `sqlite3.Cursor.execute()`
-           :returns: self"""
+
+           :returns: self
+        """
 
         with self:
             self.cursor.execute(*args, **kwargs)
@@ -272,7 +276,9 @@ class Connection(object):
     @chain
     def executemany(self, *args, **kwargs):
         """Analogous to `sqlite3.Cursor.executemany()`
-           :returns: self"""
+
+           :returns: self
+        """
 
         with self:
             self.cursor.executemany(*args, **kwargs)
@@ -280,7 +286,9 @@ class Connection(object):
     @chain
     def executescript(self, *args, **kwargs):
         """Analogous to `sqlite3.Cursor.executscript()`
-           :returns: self"""
+
+           :returns: self
+        """
 
         with self:
             self.cursor.executescript(*args, **kwargs)
