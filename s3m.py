@@ -24,10 +24,11 @@ S3M - sqlite3 wrapper for multithreaded applications
 import os
 import sqlite3
 import threading
+import weakref
 
 __all__ = ["connect", "Connection", "S3MError", "LockTimeoutError"]
 
-version = "1.0.3"
+version = "1.0.4"
 
 # Global lock storage
 DB_STATES = {}
@@ -159,7 +160,15 @@ class Connection(object):
             # If the object doesn't already exist, make a new one
             if self.db_state is None:
                 self.db_state = DBState()
-                DB_STATES[self.path] = self.db_state
+
+                def func(path):
+                    with DICT_LOCK:
+                        DB_STATES.pop(path)
+
+                # Automatically cleanup DB_STATES
+                DB_STATES[self.path] = weakref.finalize(self.db_state, func, self.path)
+            else:
+                self.db_state = self.db_state.peek()[0]
 
     @property
     def in_transaction(self):
