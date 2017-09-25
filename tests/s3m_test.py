@@ -24,7 +24,7 @@ class S3MTestCase(unittest.TestCase):
         if conn.path == ":memory:":
             self.assertFalse(conn.path in s3m.DB_STATES)
         else:
-            self.assertIs(conn.db_state, s3m.DB_STATES[s3m.normalize_path(conn.path)])
+            self.assertIs(conn.db_state, s3m.DB_STATES[s3m.normalize_path(conn.path)].peek()[0])
 
         queries = ["CREATE TABLE IF NOT EXISTS a(id INTEGER)",
                    "BEGIN TRANSACTION",
@@ -199,3 +199,5 @@ class S3MTestCase(unittest.TestCase):
             os.remove(self.db_path)
         except FileNotFoundError:
             pass
+
+        self.assertEqual(len(s3m.DB_STATES), 0)
