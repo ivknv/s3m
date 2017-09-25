@@ -52,7 +52,7 @@ The usage is similar to `sqlite3` with a few exceptions.
 
 There is no cursor()
 --------------------
-You never have to use cursors. `s3m.Connection` object is completely self-sufficent, it has the methods of both a connection and a cursor.
+You never have to use cursors. `s3m.Connection` object is completely self-sufficient, it has the methods of both a connection and a cursor.
 
 Connections can be freely shared between threads (given `check_same_thread=False`)
 ----------------------------------------------------------------------------------
