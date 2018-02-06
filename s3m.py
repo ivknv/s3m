@@ -38,7 +38,7 @@ DICT_LOCK = threading.Lock()
 
 DEFAULT_FETCHMANY_SIZE = 1000
 
-class S3MError(BaseException):
+class S3MError(Exception):
     """The base class of all the other exceptions in this module"""
     pass
 
