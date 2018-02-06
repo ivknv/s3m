@@ -9,6 +9,8 @@ import unittest
 
 import s3m
 
+__all__ = ["S3MTestCase"]
+
 class S3MTestCase(unittest.TestCase):
     def setUp(self):
         self.n_connections = 25
@@ -136,7 +138,7 @@ class S3MTestCase(unittest.TestCase):
 
     def test_close(self):
         # This doesn't work properly on windows
-        if sys.platform.startswith("win"):
+        if sys.platform.startswith("win") or sys.platform == "msys":
             return
 
         conn = self.connect_db(":memory:", check_same_thread=False)
@@ -193,6 +195,11 @@ class S3MTestCase(unittest.TestCase):
         with conn:
             conn.execute("CREATE TABLE IF NOT EXISTS a (b INTEGER)")
             conn.execute("CREATE INDEX IF NOT EXISTS b_idx ON a(b ASC)")
+
+    def test_bad_connect(self):
+        with self.assertRaises(sqlite3.OperationalError):
+            conn = self.connect_db("/nonexistent-path/a/b/c/test.db")
+            conn.close()
 
     def tearDown(self):
         try:

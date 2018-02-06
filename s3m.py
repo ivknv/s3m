@@ -130,9 +130,10 @@ class Connection(object):
 
     def __init__(self, path, lock_transactions=True, lock_timeout=-1, *args, **kwargs):
         self.path = normalize_path(path)
-        self.connection = sqlite3.connect(self.path, *args, **kwargs)
-        self.cursor = self.connection.cursor()
+        self.connection = None
+        self.cursor = None
         self.closed = False
+        self.db_sate = None
 
         # Maximum amount of time the connection is allowed to wait when acquiring the lock.
         self.lock_timeout = lock_timeout
@@ -152,23 +153,25 @@ class Connection(object):
         if self.path == ":memory:":
             # No two :memory: connections point to the same database => locks are not needed
             self.db_state = FakeDBState()
-            return
+        else:
+            with DICT_LOCK:
+                self.db_state = DB_STATES.get(self.path)
 
-        with DICT_LOCK:
-            self.db_state = DB_STATES.get(self.path)
+                # If the object doesn't already exist, make a new one
+                if self.db_state is None:
+                    self.db_state = DBState()
 
-            # If the object doesn't already exist, make a new one
-            if self.db_state is None:
-                self.db_state = DBState()
+                    def func(path):
+                        with DICT_LOCK:
+                            DB_STATES.pop(path)
 
-                def func(path):
-                    with DICT_LOCK:
-                        DB_STATES.pop(path)
+                    # Automatically cleanup DB_STATES
+                    DB_STATES[self.path] = weakref.finalize(self.db_state, func, self.path)
+                else:
+                    self.db_state = self.db_state.peek()[0]
 
-                # Automatically cleanup DB_STATES
-                DB_STATES[self.path] = weakref.finalize(self.db_state, func, self.path)
-            else:
-                self.db_state = self.db_state.peek()[0]
+        self.connection = sqlite3.connect(self.path, *args, **kwargs)
+        self.cursor = self.connection.cursor()
 
     @property
     def in_transaction(self):
@@ -266,8 +269,12 @@ class Connection(object):
                 raise LockTimeoutError(self)
 
             try:
-                self.cursor.close()
-                self.connection.close()
+                if self.cursor is not None:
+                    self.cursor.close()
+
+                if self.connection is not None:
+                    self.connection.close()
+
                 self.closed = True
             finally:
                 self.personal_lock.release()
