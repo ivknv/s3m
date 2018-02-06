@@ -11,7 +11,7 @@ with codecs.open(os.path.join(module_dir, "README.rst"), encoding="utf8") as f:
     long_description = f.read()
 
 setup(name="s3m",
-      version="1.0.4",
+      version="1.0.5",
       py_modules=["s3m"],
       description="sqlite3 wrapper for multithreaded applications",
       long_description=long_description,
