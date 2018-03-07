@@ -28,7 +28,7 @@ import weakref
 
 __all__ = ["connect", "Connection", "S3MError", "LockTimeoutError"]
 
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 
 # Global lock storage
 DB_STATES = {}
