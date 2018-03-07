@@ -6,7 +6,7 @@ S3M - sqlite3 wrapper for multithreaded applications
 """
 
 # S3M - sqlite3 wrapper for multi-threaded applications
-# Copyright (C) 2017 Ivan Konovalov
+# Copyright (C) 2018 Ivan Konovalov
 #
 # This library is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
