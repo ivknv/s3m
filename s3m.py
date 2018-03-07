@@ -133,7 +133,7 @@ class Connection(object):
         self.connection = None
         self.cursor = None
         self.closed = False
-        self.db_sate = None
+        self.db_state = None
 
         # Maximum amount of time the connection is allowed to wait when acquiring the lock.
         self.lock_timeout = lock_timeout
