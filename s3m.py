@@ -210,32 +210,61 @@ class Connection(object):
         return self.connection.total_changes
 
     def __enter__(self):
+        self.acquire()
+
+    def __exit__(self, *args, **kwargs):
+        self.release()
+
+    def acquire(self, lock_transactions=None):
+        """
+            Acquire the connection locks.
+
+            :param lock_transactions: `bool`, acquire the transaction lock
+                                      (`self.lock_transactions` is the default value)
+        """
+
         if not self.personal_lock.acquire(timeout=self.lock_timeout):
             raise LockTimeoutError(self)
 
         self.with_count += 1
 
-        if self.lock_transactions and self.db_state.active_connection is not self:
+        if lock_transactions is None:
+            lock_transactions = self.lock_transactions
+
+        if lock_transactions and self.db_state.active_connection is not self:
             if not self.db_state.transaction_lock.acquire(timeout=self.lock_timeout):
                 self.personal_lock.release()
                 raise LockTimeoutError(self)
+
             self.db_state.active_connection = self
 
         if not self.db_state.lock.acquire(timeout=self.lock_timeout):
             self.personal_lock.release()
-            if self.lock_transactions:
+
+            if lock_transactions:
                 self.db_state.active_connection = None
                 self.transaction_lock.release()
+
             raise LockTimeoutError(self)
 
         self.was_in_transaction = self.connection.in_transaction
 
-    def __exit__(self, *args, **kwargs):
-        self.with_count -= 1
+    def release(self, lock_transactions=None):
+        """
+            Release the connection locks.
+
+            :param lock_transactions: `bool`, release the transaction lock
+                                      (`self.lock_transactions` is the default value)
+        """
 
         self.personal_lock.release()
 
-        if not self.lock_transactions:
+        self.with_count -= 1
+
+        if lock_transactions is None:
+            lock_transactions = self.lock_transactions
+
+        if not lock_transactions:
             self.db_state.lock.release()
             return
 
