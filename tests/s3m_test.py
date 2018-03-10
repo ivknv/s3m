@@ -210,6 +210,14 @@ class S3MTestCase(unittest.TestCase):
         conn2 = self.connect_db(isolation_level=None, lock_timeout=0.1)
         conn2.execute("SELECT 1")
 
+    def test_close_in_with(self):
+        conn = self.connect_db()
+
+        with conn:
+            with conn:
+                with conn:
+                    conn.close()
+
     def tearDown(self):
         try:
             os.remove(self.db_path)
