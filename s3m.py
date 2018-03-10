@@ -298,6 +298,18 @@ class Connection(object):
                 raise LockTimeoutError(self)
 
             try:
+                try:
+                    if self.connection is not None:
+                        in_transaction = self.in_transaction
+                    else:
+                        in_transaction = False
+                except sqlite3.ProgrammingError:
+                    in_transaction = False
+
+                if in_transaction:
+                    self.db_state.active_connection = None
+                    self.db_state.transaction_lock.release()
+
                 if self.cursor is not None:
                     self.cursor.close()
 

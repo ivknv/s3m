@@ -201,6 +201,15 @@ class S3MTestCase(unittest.TestCase):
             conn = self.connect_db("/nonexistent-path/a/b/c/test.db")
             conn.close()
 
+    def test_close_in_transaction(self):
+        conn = self.connect_db(isolation_level=None, lock_timeout=0.1)
+
+        conn.execute("BEGIN IMMEDIATE")
+        conn.close()
+
+        conn2 = self.connect_db(isolation_level=None, lock_timeout=0.1)
+        conn2.execute("SELECT 1")
+
     def tearDown(self):
         try:
             os.remove(self.db_path)
