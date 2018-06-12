@@ -332,6 +332,8 @@ class Connection(object):
 
     @property
     def total_changes(self):
+        """Analogous to :any:`sqlite3.Connection.total_changes`"""
+
         return self.connection.total_changes
 
     def __enter__(self):
