@@ -114,6 +114,8 @@ def chain(f):
     return wrapper
 
 class Cursor(object):
+    """The cursor class, analogous to `sqlite3.Cursor`."""
+
     def __init__(self, connection):
         self.closed = False
         self._cursor = None
@@ -222,8 +224,7 @@ class Cursor(object):
         return self._connection()
 
 class Connection(object):
-    """Implements functionality of both a connection and a cursor.
-       It won't let multiple database operations execute in parallel.
+    """The connection class. It won't let multiple database operations execute in parallel.
        It can also block parallel transactions (with lock_transactions=True).
 
        `with` statement is also supported, it acquires the locks, thus blocking all the competing threads.
