@@ -136,40 +136,6 @@ class S3MTestCase(unittest.TestCase):
 
         self.assertEqual(len(conn.fetchall()), 50)
 
-    def test_close(self):
-        # This doesn't work properly on windows
-        if sys.platform.startswith("win") or sys.platform == "msys":
-            return
-
-        conn = self.connect_db(":memory:", check_same_thread=False)
-
-        success = True
-        message = None
-
-        def func():
-            nonlocal success, message
-
-            try:
-                for i in range(50):
-                    conn.execute("SELECT 1")
-            except BaseException as e:
-                if not isinstance(e, sqlite3.ProgrammingError):
-                    # sqlite3.ProgrammingError is ok
-                    success = False
-                    message = "%s: %s" % (type(e).__name__, e)
-
-        threads = [threading.Thread(target=func) for i in range(25)]
-
-        for thread in threads:
-            thread.start()
-
-        conn.close()
-
-        for thread in threads:
-            thread.join()
-
-        self.assertTrue(success, message)
-
     def test_s3m_release_without_acquire(self):
         import random
 
