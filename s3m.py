@@ -236,7 +236,7 @@ class Connection(object):
        :param single_cursor_mode: Use only one cursor (default: True)
     """
 
-    def __init__(self, path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=True, *args, **kwargs):
+    def __init__(self, path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=False, *args, **kwargs):
         self.path = normalize_path(path)
         self.connection = None
         self._cursor = None
@@ -550,7 +550,7 @@ class Connection(object):
 
         return self.connection.iterdump()
 
-def connect(path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=True,
+def connect(path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=False,
             factory=Connection, *args, **kwargs):
     """Analogous to sqlite3.connect()
 
