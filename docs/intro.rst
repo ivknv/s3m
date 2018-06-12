@@ -13,11 +13,10 @@ Keep in mind that this library can only help you with **threads**, not **process
 
 What else is different from `sqlite3`?
 ######################################
-* There are no cursors. All you need is the connection object, it's completely self-sufficient.
 * You can freely share connections between threads (not that you have to), given ``check_same_thread=False``.
 * You can use the ``with`` statement with the connection object to acquire the locks.
 
-Example: insert 10 random numbers in parallel
+Example
 #############################################
 
 .. code:: python
@@ -25,17 +24,25 @@ Example: insert 10 random numbers in parallel
     import random
     import threading
 
+    # Try replacing 's3m' with 'sqlite3' and see what happens
     import s3m
 
     # Open the database file,
-    # check_same_thread=False is needed to allow sharing the connection with other threads
-    conn = s3m.connect("s3m_example.db", check_same_thread=False)
+    # isolation_level=None is needed to prevent sqlite3 from starting transactions on its own
+    conn = s3m.connect("s3m_example.db", isolation_level=None)
 
     # Create table if it doesn't already exist
     conn.execute("CREATE TABLE IF NOT EXISTS numbers(number INTEGER)")
 
     def thread_func():
+        conn = s3m.connect("s3m_example.db", isolation_level=None)
+        conn.execute("BEGIN IMMEDIATE")
         conn.execute("INSERT INTO numbers VALUES(?)", (random.randint(1, 100),))
+
+        # Imagine there's some intense database work going on
+        time.sleep(1)
+
+        conn.commit()
 
     # Make 10 threads
     threads = [threading.Thread(target=thread_func) for i in range(10)]
@@ -47,11 +54,8 @@ Example: insert 10 random numbers in parallel
     for thread in threads:
         thread.join()
 
-    # Commit changes
-    conn.commit()
-
     # Now let's look at what we got
     result = conn.execute("SELECT * FROM numbers").fetchall()
     print(result)
 
-As you can see from this example, the usage is pretty similar to `sqlite3`.
+As you can see from this example, the usage is pretty much the same as with built-in `sqlite3`.

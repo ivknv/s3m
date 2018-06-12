@@ -48,12 +48,5 @@ There are no requirements.
 
 Usage
 #####
-The usage is similar to `sqlite3` with a few exceptions.
 
-There is no cursor()
---------------------
-You never have to use cursors. `s3m.Connection` object is completely self-sufficient, it has the methods of both a connection and a cursor.
-
-Connections can be freely shared between threads (given `check_same_thread=False`)
-----------------------------------------------------------------------------------
-Multiple threads can use the same connection at the same time without any problems, that is, assuming that the connection was created with `check_same_thread=False`.
+The usage is pretty much the same as with built-in `sqlite3`.

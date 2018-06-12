@@ -7,7 +7,7 @@ Documentation
 Using ``with`` statement
 ########################
 
-The `Connection` object supports the ``with`` statement.
+The `Connection` (as well as `Cursor`) object supports the ``with`` statement.
 It acquires the locks which will result either in the current thread waiting for other threads
 or making other threads wait until the current thread exits the ``with`` block.
 
