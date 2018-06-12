@@ -113,6 +113,114 @@ def chain(f):
 
     return wrapper
 
+class Cursor(object):
+    def __init__(self, connection):
+        self.closed = False
+        self._cursor = None
+        self._connection = weakref.ref(connection)
+
+        self._cursor = connection.connection.cursor()
+
+    def __enter__(self):
+        self.connection.acquire()
+
+    def __exit__(self, *args, **kwargs):
+        self.connection.release()
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        """Close the cursor"""
+
+        if self.closed or self.connection.closed:
+            return
+
+        self._cursor.close()
+        self.closed = True
+
+    @chain
+    def execute(self, *args, **kwargs):
+        """Analogous to `sqlite3.Cursor.execute()`
+
+           :returns: self
+        """
+
+        with self:
+            self._cursor.execute(*args, **kwargs)
+
+    @chain
+    def executemany(self, *args, **kwargs):
+        """Analogous to `sqlite3.Cursor.executemany()`
+
+           :returns: self
+        """
+
+        with self:
+            self._cursor.executemany(*args, **kwargs)
+
+    @chain
+    def executescript(self, *args, **kwargs):
+        """Analogous to `sqlite3.Cursor.executscript()`
+
+           :returns: self
+        """
+
+        with self:
+            self._cursor.executescript(*args, **kwargs)
+
+    def fetchone(self):
+        """Analogous to `sqlite3.Cursor.fetchone()`"""
+
+        with self:
+            return self._cursor.fetchone()
+
+    def fetchmany(self, size=DEFAULT_FETCHMANY_SIZE):
+        """Analogous to `sqlite3.Cursor.fetchmany()`"""
+
+        with self:
+            return self._cursor.fetchmany(size)
+
+    def fetchall(self):
+        """Analogous to `sqlite3.Cursor.fetchall()`"""
+
+        with self:
+            return self._cursor.fetchall()
+
+    @property
+    def rowcount(self):
+        """Analogous to `sqlite3.Cursor.rowcount`"""
+
+        return self._cursor.rowcount
+
+    @property
+    def lastrowid(self):
+        """Analogous to `sqlite3.Cursor.lastrowid`"""
+
+        return self._cursor.lastrowid
+
+    @property
+    def arraysize(self):
+        """Analogous to `sqlite3.Cursor.arraysize`"""
+
+        return self._cursor.arraysize
+
+    @arraysize.setter
+    def arraysize(self, value):
+        self._cursor.arraysize = value
+
+    @property
+    def description(self):
+        """Analogous to `sqlite3.Cursor.description`"""
+
+        return self._cursor.description
+
+    @property
+    def connection(self):
+        """Connection used by the cursor"""
+
+        return self._connection()
+
 class Connection(object):
     """Implements functionality of both a connection and a cursor.
        It won't let multiple database operations execute in parallel.
@@ -126,14 +234,16 @@ class Connection(object):
        :param lock_timeout: Maximum amount of time the connection is allowed to wait for a lock.
                             If the timeout is exceeded, LockTimeoutError will be thrown.
                             -1 disables the timeout.
+       :param single_cursor_mode: Use only one cursor (default: True)
     """
 
-    def __init__(self, path, lock_transactions=True, lock_timeout=-1, *args, **kwargs):
+    def __init__(self, path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=True, *args, **kwargs):
         self.path = normalize_path(path)
         self.connection = None
-        self.cursor = None
+        self._cursor = None
         self.closed = False
         self.db_state = None
+        self.single_cursor_mode = single_cursor_mode
 
         # Maximum amount of time the connection is allowed to wait when acquiring the lock.
         self.lock_timeout = lock_timeout
@@ -171,13 +281,29 @@ class Connection(object):
                     self.db_state = self.db_state.peek()[0]
 
         self.connection = sqlite3.connect(self.path, *args, **kwargs)
-        self.cursor = self.connection.cursor()
+
+        if self.single_cursor_mode:
+            self._cursor = Cursor(self)
+
+    def cursor(self):
+        """Analogous to `sqlite3.Connection.cursor()`"""
+
+        if self.single_cursor_mode:
+            if self._cursor is None:
+                raise sqlite3.ProgrammingError("Cannot operate on a closed database.")
+
+            return self._cursor
+
+        return Cursor(self)
 
     @property
     def in_transaction(self):
         """Analogous to `sqlite3.Connection.in_transaction`"""
 
-        return self.connection.in_transaction
+        if self.connection is not None:
+            return self.connection.in_transaction
+
+        raise sqlite3.ProgrammingError("Cannot operate on a closed database.")
 
     @property
     def isolation_level(self):
@@ -247,7 +373,13 @@ class Connection(object):
 
             raise LockTimeoutError(self)
 
-        self.was_in_transaction = self.connection.in_transaction
+        try:
+            # If the connection is closed, an exception is thrown
+            in_transaction = self.in_transaction
+        except sqlite3.ProgrammingError:
+            in_transaction = False
+
+        self.was_in_transaction = in_transaction
 
     def release(self, lock_transactions=None):
         """
@@ -290,65 +422,49 @@ class Connection(object):
     def close(self):
         """Close the connection"""
 
-        if not self.closed:
-            # Make sure no one minds the connection to be closed
-            # This will help avoid MemoryError in other threads,
-            # they will get sqlite3.ProgrammingError instead
-            if not self.personal_lock.acquire(timeout=self.lock_timeout):
-                raise LockTimeoutError(self)
+        if self.closed:
+            return
 
+        # Make sure no one minds the connection to be closed
+        # This will help avoid MemoryError in other threads,
+        # they will get sqlite3.ProgrammingError instead
+        if not self.personal_lock.acquire(timeout=self.lock_timeout):
+            raise LockTimeoutError(self)
+
+        try:
             try:
-                try:
-                    if self.connection is not None:
-                        in_transaction = self.in_transaction
-                    else:
-                        in_transaction = False
-                except sqlite3.ProgrammingError:
-                    in_transaction = False
-
-                if in_transaction:
+                if self.in_transaction:
                     self.db_state.active_connection = None
                     self.db_state.transaction_lock.release()
+            except sqlite3.ProgrammingError:
+                pass
 
-                if self.cursor is not None:
-                    self.cursor.close()
+            if self._cursor is not None and not self._cursor.closed:
+                self._cursor._cursor.close()
+                self._cursor.closed = True
+                self._cursor = None
 
-                if self.connection is not None:
-                    self.connection.close()
+            if self.connection is not None:
+                self.connection.close()
 
-                self.closed = True
-            finally:
-                self.personal_lock.release()
+            self.closed = True
+        finally:
+            self.personal_lock.release()
 
-    @chain
     def execute(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.execute()`
+        """Analogous to `sqlite3.Cursor.execute()`"""
 
-           :returns: self
-        """
+        return self.cursor().execute(*args, **kwargs)
 
-        with self:
-            self.cursor.execute(*args, **kwargs)
-
-    @chain
     def executemany(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.executemany()`
+        """Analogous to `sqlite3.Cursor.executemany()`"""
 
-           :returns: self
-        """
+        return self.cursor().executemany(*args, **kwargs)
 
-        with self:
-            self.cursor.executemany(*args, **kwargs)
-
-    @chain
     def executescript(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.executscript()`
+        """Analogous to `sqlite3.Cursor.executscript()`"""
 
-           :returns: self
-        """
-
-        with self:
-            self.cursor.executescript(*args, **kwargs)
+        return self.cursor().executescript(*args, **kwargs)
 
     def commit(self):
         """Analogous to `sqlite3.Connection.commit()`"""
@@ -365,20 +481,26 @@ class Connection(object):
     def fetchone(self):
         """Analogous to `sqlite3.Cursor.fetchone()`"""
 
-        with self:
-            return self.cursor.fetchone()
+        if not self.single_cursor_mode:
+            raise S3MError("Calling Connection.fetchone() while not in single cursor mode")
+
+        return self._cursor.fetchone()
 
     def fetchmany(self, size=DEFAULT_FETCHMANY_SIZE):
         """Analogous to `sqlite3.Cursor.fetchmany()`"""
 
-        with self:
-            return self.cursor.fetchmany(size)
+        if not self.single_cursor_mode:
+            raise S3MError("Calling Connection.fetchmany() while not in single cursor mode")
+
+        return self._cursor.fetchmany(size)
 
     def fetchall(self):
         """Analogous to `sqlite3.Cursor.fetchall()`"""
 
-        with self:
-            return self.cursor.fetchall()
+        if not self.single_cursor_mode:
+            raise S3MError("Calling Connection.fetchall() while not in single cursor mode")
+
+        return self._cursor.fetchall()
 
     def interrupt(self):
         """Analogous to `sqlite3.Connection.interrupt()`"""
@@ -428,7 +550,7 @@ class Connection(object):
 
         return self.connection.iterdump()
 
-def connect(path, lock_transactions=True, lock_timeout=-1,
+def connect(path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=True,
             factory=Connection, *args, **kwargs):
     """Analogous to sqlite3.connect()
 
@@ -437,10 +559,12 @@ def connect(path, lock_transactions=True, lock_timeout=-1,
        :param lock_timeout: Maximum amount of time the connection is allowed to wait for a lock.
                             If the timeout is exceeded, LockTimeoutError will be thrown.
                             -1 disables the timeout.
+       :param single_cursor_mode: Use only one cursor (default: True)
        :param factory: Connection class
     """
 
     return factory(path,
                    lock_transactions=lock_transactions,
                    lock_timeout=lock_timeout,
+                   single_cursor_mode=single_cursor_mode,
                    *args, **kwargs)

@@ -43,11 +43,11 @@ class S3MTestCase(unittest.TestCase):
             for query in queries:
                 conn.execute(query)
 
-        conn.close()
-
     def connect_db(self, path=None, *args, **kwargs):
         path = self.db_path if path is None else path
         kwargs.setdefault("isolation_level", None)
+        kwargs.setdefault("single_cursor_mode", False)
+        kwargs.setdefault("check_same_thread", False)
         return s3m.connect(path, *args, **kwargs)
 
     def setup_db(self, *args, **kwargs):
@@ -63,8 +63,7 @@ class S3MTestCase(unittest.TestCase):
     def test_s3m(self):
         self.setup_db(self.db_path)
         conn = self.connect_db(self.db_path)
-        conn.execute("SELECT id FROM a")
-        result = conn.fetchall()
+        result = conn.execute("SELECT id FROM a").fetchall()
         self.assertEqual(result, [(1,), (2,), (3,)] * self.n_connections)
 
     def test_s3m_lock_transactions(self):
@@ -132,9 +131,9 @@ class S3MTestCase(unittest.TestCase):
 
         conn.commit()
 
-        conn.execute("SELECT id FROM a")
+        cur = conn.execute("SELECT id FROM a")
 
-        self.assertEqual(len(conn.fetchall()), 50)
+        self.assertEqual(len(cur.fetchall()), 50)
 
     def test_s3m_release_without_acquire(self):
         import random
