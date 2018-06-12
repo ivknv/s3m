@@ -368,7 +368,7 @@ class Connection(object):
 
             if lock_transactions:
                 self.db_state.active_connection = None
-                self.transaction_lock.release()
+                self.db_state.transaction_lock.release()
 
             raise LockTimeoutError(self)
 
