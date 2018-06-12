@@ -1,2 +1,3 @@
-include LICENSE.txt
+include COPYING
+include COPYING.lesser
 include README.rst
