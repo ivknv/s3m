@@ -441,7 +441,6 @@ class Connection(object):
             if self._cursor is not None and not self._cursor.closed:
                 self._cursor._cursor.close()
                 self._cursor.closed = True
-                self._cursor = None
 
             if self.connection is not None:
                 self.connection.close()
@@ -478,7 +477,11 @@ class Connection(object):
             self.connection.rollback()
 
     def fetchone(self):
-        """Analogous to :any:`sqlite3.Cursor.fetchone`"""
+        """
+            Analogous to :any:`sqlite3.Cursor.fetchone`.
+            
+            Works only in single cursor mode.
+        """
 
         if not self.single_cursor_mode:
             raise S3MError("Calling Connection.fetchone() while not in single cursor mode")
@@ -486,7 +489,11 @@ class Connection(object):
         return self._cursor.fetchone()
 
     def fetchmany(self, *args, **kwargs):
-        """Analogous to :any:`sqlite3.Cursor.fetchmany`"""
+        """
+            Analogous to :any:`sqlite3.Cursor.fetchmany`.
+
+            Works only in single cursor mode.
+        """
 
         if not self.single_cursor_mode:
             raise S3MError("Calling Connection.fetchmany() while not in single cursor mode")
@@ -494,12 +501,72 @@ class Connection(object):
         return self._cursor.fetchmany(*args, **kwargs)
 
     def fetchall(self):
-        """Analogous to :any:`sqlite3.Cursor.fetchall`"""
+        """
+            Analogous to :any:`sqlite3.Cursor.fetchall`.
+        
+            Works only in single cursor mode.
+        """
 
         if not self.single_cursor_mode:
             raise S3MError("Calling Connection.fetchall() while not in single cursor mode")
 
         return self._cursor.fetchall()
+
+    @property
+    def rowcount(self):
+        """
+            Analogous to :any:`sqlite3.Cursor.rowcount`.
+            
+            Works only in single cursor mode.
+        """
+
+        if not self.single_cursor_mode:
+            raise S3MError("Calling Connection.rowcount() while not in single cursor mode")
+
+        return self._cursor.rowcount
+
+    @property
+    def lastrowid(self):
+        """
+            Analogous to :any:`sqlite3.Cursor.lastrowid`.
+
+            Works only in single cursor mode.
+        """
+
+        if not self.single_cursor_mode:
+            raise S3MError("Calling Connection.lastrowid() while not in single cursor mode")
+
+        return self._cursor.lastrowid
+
+    @property
+    def arraysize(self):
+        """
+            Analogous to :any:`sqlite3.Cursor.arraysize`
+
+            Works only in single cursor mode.
+        """
+
+        if not self.single_cursor_mode:
+            raise S3MError("Calling Connection.arraysize() while not in single cursor mode")
+
+        return self._cursor.arraysize
+
+    @arraysize.setter
+    def arraysize(self, value):
+        self._cursor.arraysize = value
+
+    @property
+    def description(self):
+        """
+            Analogous to :any:`sqlite3.Cursor.description`
+
+            Works only in single cursor mode.
+        """
+
+        if not self.single_cursor_mode:
+            raise S3MError("Calling Connection.description() while not in single cursor mode")
+
+        return self._cursor.description
 
     def interrupt(self):
         """Analogous to :any:`sqlite3.Connection.interrupt`"""
