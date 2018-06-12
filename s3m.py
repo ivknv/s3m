@@ -36,8 +36,6 @@ DB_STATES = {}
 # Locks access to DB_STATES
 DICT_LOCK = threading.Lock()
 
-DEFAULT_FETCHMANY_SIZE = 1000
-
 class S3MError(Exception):
     """The base class of all the other exceptions in this module"""
     pass
@@ -177,11 +175,11 @@ class Cursor(object):
         with self:
             return self._cursor.fetchone()
 
-    def fetchmany(self, size=DEFAULT_FETCHMANY_SIZE):
+    def fetchmany(self, *args, **kwargs):
         """Analogous to :any:`sqlite3.Cursor.fetchmany`"""
 
         with self:
-            return self._cursor.fetchmany(size)
+            return self._cursor.fetchmany(*args, **kwargs)
 
     def fetchall(self):
         """Analogous to :any:`sqlite3.Cursor.fetchall`"""
@@ -487,13 +485,13 @@ class Connection(object):
 
         return self._cursor.fetchone()
 
-    def fetchmany(self, size=DEFAULT_FETCHMANY_SIZE):
+    def fetchmany(self, *args, **kwargs):
         """Analogous to :any:`sqlite3.Cursor.fetchmany`"""
 
         if not self.single_cursor_mode:
             raise S3MError("Calling Connection.fetchmany() while not in single cursor mode")
 
-        return self._cursor.fetchmany(size)
+        return self._cursor.fetchmany(*args, **kwargs)
 
     def fetchall(self):
         """Analogous to :any:`sqlite3.Cursor.fetchall`"""
