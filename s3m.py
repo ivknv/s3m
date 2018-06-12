@@ -114,7 +114,7 @@ def chain(f):
     return wrapper
 
 class Cursor(object):
-    """The cursor class, analogous to `sqlite3.Cursor`."""
+    """The cursor class, analogous to :any:`sqlite3.Cursor`."""
 
     def __init__(self, connection):
         self.closed = False
@@ -143,7 +143,7 @@ class Cursor(object):
 
     @chain
     def execute(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.execute()`
+        """Analogous to :any:`sqlite3.Cursor.execute`
 
            :returns: self
         """
@@ -153,7 +153,7 @@ class Cursor(object):
 
     @chain
     def executemany(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.executemany()`
+        """Analogous to :any:`sqlite3.Cursor.executemany`
 
            :returns: self
         """
@@ -163,7 +163,7 @@ class Cursor(object):
 
     @chain
     def executescript(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.executscript()`
+        """Analogous to :any:`sqlite3.Cursor.executescript`
 
            :returns: self
         """
@@ -172,38 +172,38 @@ class Cursor(object):
             self._cursor.executescript(*args, **kwargs)
 
     def fetchone(self):
-        """Analogous to `sqlite3.Cursor.fetchone()`"""
+        """Analogous to :any:`sqlite3.Cursor.fetchone`"""
 
         with self:
             return self._cursor.fetchone()
 
     def fetchmany(self, size=DEFAULT_FETCHMANY_SIZE):
-        """Analogous to `sqlite3.Cursor.fetchmany()`"""
+        """Analogous to :any:`sqlite3.Cursor.fetchmany`"""
 
         with self:
             return self._cursor.fetchmany(size)
 
     def fetchall(self):
-        """Analogous to `sqlite3.Cursor.fetchall()`"""
+        """Analogous to :any:`sqlite3.Cursor.fetchall`"""
 
         with self:
             return self._cursor.fetchall()
 
     @property
     def rowcount(self):
-        """Analogous to `sqlite3.Cursor.rowcount`"""
+        """Analogous to :any:`sqlite3.Cursor.rowcount`"""
 
         return self._cursor.rowcount
 
     @property
     def lastrowid(self):
-        """Analogous to `sqlite3.Cursor.lastrowid`"""
+        """Analogous to :any:`sqlite3.Cursor.lastrowid`"""
 
         return self._cursor.lastrowid
 
     @property
     def arraysize(self):
-        """Analogous to `sqlite3.Cursor.arraysize`"""
+        """Analogous to :any:`sqlite3.Cursor.arraysize`"""
 
         return self._cursor.arraysize
 
@@ -213,7 +213,7 @@ class Cursor(object):
 
     @property
     def description(self):
-        """Analogous to `sqlite3.Cursor.description`"""
+        """Analogous to :any:`sqlite3.Cursor.description`"""
 
         return self._cursor.description
 
@@ -287,7 +287,7 @@ class Connection(object):
             self._cursor = Cursor(self)
 
     def cursor(self):
-        """Analogous to `sqlite3.Connection.cursor()`"""
+        """Analogous to :any:`sqlite3.Connection.cursor`"""
 
         if self.single_cursor_mode:
             if self._cursor is None:
@@ -299,7 +299,7 @@ class Connection(object):
 
     @property
     def in_transaction(self):
-        """Analogous to `sqlite3.Connection.in_transaction`"""
+        """Analogous to :any:`sqlite3.Connection.in_transaction`"""
 
         if self.connection is not None:
             return self.connection.in_transaction
@@ -308,7 +308,7 @@ class Connection(object):
 
     @property
     def isolation_level(self):
-        """Analogous to `sqlite3.Connection.isolation_level`"""
+        """Analogous to :any:`sqlite3.Connection.isolation_level`"""
 
         return self.connection.isolation_level
 
@@ -318,7 +318,7 @@ class Connection(object):
 
     @property
     def row_factory(self):
-        """Analogous to `sqlite3.Connection.row_factory`"""
+        """Analogous to :any:`sqlite3.Connection.row_factory`"""
 
         return self.connection.row_factory
 
@@ -328,7 +328,7 @@ class Connection(object):
 
     @property
     def text_factory(self):
-        """Analogous to `sqlite3.Connection.text_factory`"""
+        """Analogous to :any:`sqlite3.Connection.text_factory`"""
 
         return self.connection.text_factory
 
@@ -453,34 +453,34 @@ class Connection(object):
             self.personal_lock.release()
 
     def execute(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.execute()`"""
+        """Analogous to :any:`sqlite3.Cursor.execute`"""
 
         return self.cursor().execute(*args, **kwargs)
 
     def executemany(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.executemany()`"""
+        """Analogous to :any:`sqlite3.Cursor.executemany`"""
 
         return self.cursor().executemany(*args, **kwargs)
 
     def executescript(self, *args, **kwargs):
-        """Analogous to `sqlite3.Cursor.executscript()`"""
+        """Analogous to :any:`sqlite3.Cursor.executescript`"""
 
         return self.cursor().executescript(*args, **kwargs)
 
     def commit(self):
-        """Analogous to `sqlite3.Connection.commit()`"""
+        """Analogous to :any:`sqlite3.Connection.commit`"""
 
         with self:
             self.connection.commit()
 
     def rollback(self):
-        """Analogous to `sqlite3.Connection.rollback()`"""
+        """Analogous to :any:`sqlite3.Connection.rollback`"""
 
         with self:
             self.connection.rollback()
 
     def fetchone(self):
-        """Analogous to `sqlite3.Cursor.fetchone()`"""
+        """Analogous to :any:`sqlite3.Cursor.fetchone`"""
 
         if not self.single_cursor_mode:
             raise S3MError("Calling Connection.fetchone() while not in single cursor mode")
@@ -488,7 +488,7 @@ class Connection(object):
         return self._cursor.fetchone()
 
     def fetchmany(self, size=DEFAULT_FETCHMANY_SIZE):
-        """Analogous to `sqlite3.Cursor.fetchmany()`"""
+        """Analogous to :any:`sqlite3.Cursor.fetchmany`"""
 
         if not self.single_cursor_mode:
             raise S3MError("Calling Connection.fetchmany() while not in single cursor mode")
@@ -496,7 +496,7 @@ class Connection(object):
         return self._cursor.fetchmany(size)
 
     def fetchall(self):
-        """Analogous to `sqlite3.Cursor.fetchall()`"""
+        """Analogous to :any:`sqlite3.Cursor.fetchall`"""
 
         if not self.single_cursor_mode:
             raise S3MError("Calling Connection.fetchall() while not in single cursor mode")
@@ -504,50 +504,51 @@ class Connection(object):
         return self._cursor.fetchall()
 
     def interrupt(self):
-        """Analogous to `sqlite3.Connection.interrupt()`"""
+        """Analogous to :any:`sqlite3.Connection.interrupt`"""
 
         return self.connection.interrupt()
 
     def create_function(self, *args, **kwargs):
-        """Analogous to `sqlite3.Connection.create_function()`"""
+        """Analogous to :any:`sqlite3.Connection.create_function`"""
 
         self.connection.create_function(*args, **kwargs)
 
     def create_aggregate(self, *args, **kwargs):
-        """Analogous to `sqlite3.Connection.create_aggregate()`"""
+        """Analogous to :any:`sqlite3.Connection.create_aggregate`"""
 
         self.connection.create_aggregate(*args, **kwargs)
 
     def create_collation(self, *args, **kwargs):
-        """Analogous to `sqlite3.Connection.create_collation()`"""
+        """Analogous to :any:`sqlite3.Connection.create_collation`"""
 
         self.connection.create_collation(*args, **kwargs)
 
     def set_authorizer(self, *args, **kwargs):
-        """Analogous to `sqlite3.Connection.set_authorizer()`"""
+        """Analogous to :any:`sqlite3.Connection.set_authorizer`"""
 
         self.connection.set_authorizer(*args, **kwargs)
 
     def set_progress_handler(self, *args, **kwargs):
+        """Analogous to :any:`sqlite3.Connection.set_progress_handler`"""
         self.connection.set_progress_handler(*args, **kwargs)
 
     def set_trace_callback(self, *args, **kwargs):
-        """Analogous to `sqlite3.Connection.set_trace_callback()`"""
+        """Analogous to :any:`sqlite3.Connection.set_trace_callback`"""
 
         self.connection.set_trace_callback(*args, **kwargs)
 
     def enable_load_extension(self, *args, **kwargs):
-        """Analogous to `sqlite3.Connection.enable_load_extension()`"""
+        """Analogous to :any:`sqlite3.Connection.enable_load_extension`"""
 
         self.connection.enable_load_extension(*args, **kwargs)
 
     def load_extension(self, *args, **kwargs):
-        """Analogous to `sqlite3.Connection.load_extension()`"""
+        """Analogous to :any:`sqlite3.Connection.load_extension`"""
 
         self.connection.load_extension(*args, **kwargs)
 
     def iterdump(self, *args, **kwargs):
-        """Analogous to `sqlite3.Connection.iterdump()`"""
+        """Analogous to :any:`sqlite3.Connection.iterdump`"""
 
         return self.connection.iterdump()
 
@@ -556,12 +557,12 @@ def connect(path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=Tr
     """Analogous to sqlite3.connect()
 
        :param path: Path to the database
-       :param lock_transactions: If True, parallel transactions will be blocked
+       :param lock_transactions: If `True`, parallel transactions will be blocked
        :param lock_timeout: Maximum amount of time the connection is allowed to wait for a lock.
-                            If the timeout is exceeded, LockTimeoutError will be thrown.
+                            If the timeout i exceeded, :any:`LockTimeoutError` will be thrown.
                             -1 disables the timeout.
-       :param single_cursor_mode: Use only one cursor (default: True)
-       :param factory: Connection class
+       :param single_cursor_mode: Use only one cursor (default: `True`)
+       :param factory: Connection class (default: :any:`Connection`)
     """
 
     return factory(path,
