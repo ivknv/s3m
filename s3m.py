@@ -26,7 +26,7 @@ import sqlite3
 import threading
 import weakref
 
-__all__ = ["connect", "Connection", "S3MError", "LockTimeoutError"]
+__all__ = ["connect", "Connection", "Cursor", "S3MError", "LockTimeoutError"]
 
 __version__ = "1.0.7"
 
