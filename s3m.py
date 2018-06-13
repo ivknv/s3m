@@ -233,7 +233,7 @@ class Connection(object):
        :param lock_timeout: Maximum amount of time the connection is allowed to wait for a lock.
                             If the timeout is exceeded, LockTimeoutError will be thrown.
                             -1 disables the timeout.
-       :param single_cursor_mode: Use only one cursor (default: True)
+       :param single_cursor_mode: Use only one cursor (default: `False`)
     """
 
     def __init__(self, path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=False, *args, **kwargs):
@@ -628,7 +628,7 @@ def connect(path, lock_transactions=True, lock_timeout=-1, single_cursor_mode=Fa
        :param lock_timeout: Maximum amount of time the connection is allowed to wait for a lock.
                             If the timeout i exceeded, :any:`LockTimeoutError` will be thrown.
                             -1 disables the timeout.
-       :param single_cursor_mode: Use only one cursor (default: `True`)
+       :param single_cursor_mode: Use only one cursor (default: `False`)
        :param factory: Connection class (default: :any:`Connection`)
     """
 
